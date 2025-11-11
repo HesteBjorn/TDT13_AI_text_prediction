@@ -35,11 +35,11 @@ This repo provides a minimal-yet-extensible scaffold for comparing simple AI-tex
    ```
 2. **Cache the dataset** (optional but keeps scripts deterministic, uses the official `raid-bench` loader):
    ```bash
-   python scripts/download_raid.py
+   python scripts/download_raid.py --limit 50000  # add --limit to keep a tiny debug subset
    ```
-3. **Fine-tune DistilBERT** (uses defaults from `src/config.py`):
+3. **Fine-tune DistilBERT** (uses defaults from `src/config.py`; `--data-limit` mirrors the download limit):
    ```bash
-   python -m src.training --output-dir models/distilbert-test
+   python -m src.training --output-dir models/distilbert-test --data-limit 50000
    ```
 4. **Evaluate both models** (transformer checkpoint + prompt baseline):
    ```bash
@@ -55,5 +55,6 @@ This repo provides a minimal-yet-extensible scaffold for comparing simple AI-tex
 - The LLM prompt baseline is implemented as an interface—drop in either an API client (OpenAI, Azure, Anthropic, etc.) or a local open-source model runnable with `transformers`/`text-generation-inference`.
 - The scripts default to the smaller `distilbert-base-uncased` backbone to keep training time manageable, but `config.MODEL_NAME` can be swapped for any encoder-only HF checkpoint.
 - Dataset ingestion relies on the official `raid-bench` Python package (`raid.utils.load_data`), so the splits/metadata exactly match the project’s reference convention; be mindful that the full RAID train split is large (~12 GB) and sample accordingly.
+- Use the `--limit` / `--data-limit` knobs to sample a small random subset for debugging—this still downloads the full split once, but afterwards all scripts operate on the truncated copy.
 - Add experiment tracking (Weights & Biases, MLflow, etc.) by extending `training.py`.
 - The SHAP utility uses the trained classifier's probability outputs to surface feature attributions; consider pairing with linguistic feature engineering for richer narratives.

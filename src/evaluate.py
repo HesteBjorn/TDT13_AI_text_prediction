@@ -20,10 +20,15 @@ def main(
     checkpoint_path: Path = typer.Option(..., help="Path to a fine-tuned transformer checkpoint."),
     sample_limit: Optional[int] = typer.Option(None, help="Limit the number of test samples."),
     run_prompt_baseline: bool = typer.Option(True, help="Also run the heuristic prompt detector."),
+    data_limit: Optional[int] = typer.Option(
+        None,
+        help="Randomly subset each RAID split before tokenization (after download).",
+    ),
+    sample_seed: int = typer.Option(42, help="Seed used when applying --data-limit."),
 ) -> None:
     """Benchmark the transformer classifier and optional prompt baseline."""
     config.ensure_directories()
-    dataset = data.load_raid()
+    dataset = data.load_raid(limit=data_limit, sample_seed=sample_seed)
     if sample_limit is not None:
         sample_size = min(sample_limit, len(dataset["test"]))
         dataset = DatasetDict({split: split_ds for split, split_ds in dataset.items()})

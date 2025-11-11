@@ -29,21 +29,25 @@ def load_raid(
     validation_ratio: float = 0.1,
     seed: int = 42,
     raw: bool = False,
+    limit: int | None = None,
+    sample_seed: int = 42,
 ) -> DatasetDict | Dict[str, pd.DataFrame]:
     """
     Load RAID splits using the official raid-bench helper.
-    Returns pandas DataFrames when `raw=True`, otherwise wraps them
-    into a Hugging Face DatasetDict with a validation fold.
+    When `limit` is set, each split is randomly subsampled (after download) to that many rows.
     """
-    train_df = load_data(split="train", include_adversarial=include_adversarial)
-    test_df = load_data(split="test", include_adversarial=include_adversarial)
-    extra_df = load_data(split="extra", include_adversarial=include_adversarial)
+    train_df = _prepare_dataframe(load_data(split="train", include_adversarial=include_adversarial))
+    test_df = _prepare_dataframe(load_data(split="test", include_adversarial=include_adversarial))
+    extra_df = _prepare_dataframe(load_data(split="extra", include_adversarial=include_adversarial))
+
+    train_df = _limit_dataframe(train_df, limit, sample_seed, "train")
+    test_df = _limit_dataframe(test_df, limit, sample_seed, "test")
+    extra_df = _limit_dataframe(extra_df, limit, sample_seed, "extra")
 
     if raw:
         return {"train": train_df, "test": test_df, "extra": extra_df}
 
     train_df, val_df = _split_train_validation(train_df, validation_ratio, seed)
-    test_df = _prepare_dataframe(test_df).reset_index(drop=True)
 
     dataset = DatasetDict(
         {
@@ -55,11 +59,25 @@ def load_raid(
     return dataset
 
 
+def _limit_dataframe(
+    df: pd.DataFrame,
+    limit: int | None,
+    seed: int,
+    name: str,
+) -> pd.DataFrame:
+    if limit is None or len(df) <= limit:
+        return df.reset_index(drop=True)
+    if limit <= 0:
+        raise ValueError("limit must be a positive integer.")
+    min_required = 2 if name == "train" else 1
+    if limit < min_required:
+        raise ValueError(f"limit={limit} is too small for split '{name}'.")
+    return df.sample(n=limit, random_state=seed).reset_index(drop=True)
+
+
 def _split_train_validation(df: pd.DataFrame, validation_ratio: float, seed: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     if not 0 < validation_ratio < 1:
         raise ValueError("validation_ratio must be between 0 and 1.")
-
-    df = _prepare_dataframe(df)
     stratify = df[config.LABEL_FIELD]
     train_df, val_df = train_test_split(
         df,

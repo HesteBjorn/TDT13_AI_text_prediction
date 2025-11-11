@@ -27,6 +27,11 @@ def main(
         config.DEFAULT_TRAINING_CONFIG.per_device_batch_size, help="Per-device batch size."
     ),
     lr: float = typer.Option(config.DEFAULT_TRAINING_CONFIG.learning_rate, help="Learning rate."),
+    data_limit: int | None = typer.Option(
+        None,
+        help="Randomly subset each RAID split to this many rows (after download) for faster debugging.",
+    ),
+    sample_seed: int = typer.Option(42, help="Seed used when applying --data-limit."),
 ) -> None:
     """CLI entrypoint for fine-tuning DistilBERT on the RAID benchmark."""
     config.ensure_directories()
@@ -38,7 +43,7 @@ def main(
     )
 
     console.rule("[bold green]Loading dataset")
-    dataset = data.load_raid()
+    dataset = data.load_raid(limit=data_limit, sample_seed=sample_seed)
     tokenizer = data.get_tokenizer(cfg.model_name)
     tokenized = data.tokenize_dataset(dataset, tokenizer, cfg.max_length)
 

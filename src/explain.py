@@ -19,10 +19,15 @@ def main(
     checkpoint_path: Path = typer.Option(..., help="Path to fine-tuned checkpoint."),
     num_samples: int = typer.Option(32, help="How many test examples to explain."),
     top_k: int = typer.Option(5, help="Number of influential tokens to print."),
+    data_limit: int | None = typer.Option(
+        None,
+        help="Randomly subset the RAID splits before building the pipeline (after download).",
+    ),
+    sample_seed: int = typer.Option(42, help="Seed used when applying --data-limit."),
 ) -> None:
     """Runs a lightweight SHAP analysis on the transformer classifier."""
     config.ensure_directories()
-    dataset = data.load_raid()
+    dataset = data.load_raid(limit=data_limit, sample_seed=sample_seed)
     test_texts = dataset["test"][config.TEXT_FIELD][:num_samples]
 
     console.rule("[bold green]Loading pipeline")
