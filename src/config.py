@@ -10,6 +10,7 @@ MODEL_DIR = PROJECT_ROOT / "models"
 
 TEXT_FIELD = "text"
 LABEL_FIELD = "label"
+DEFAULT_INCLUDE_ADVERSARIAL = False
 
 
 @dataclass(slots=True)

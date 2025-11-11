@@ -25,7 +25,7 @@ _LABEL_NORMALIZATION = {
 
 def load_raid(
     *,
-    include_adversarial: bool = True,
+    include_adversarial: bool = config.DEFAULT_INCLUDE_ADVERSARIAL,
     validation_ratio: float = 0.1,
     seed: int = 42,
     raw: bool = False,

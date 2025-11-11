@@ -12,7 +12,10 @@ app = typer.Typer(add_completion=False)
 
 @app.command()
 def main(
-    include_adversarial: bool = typer.Option(True, help="Download splits with adversarial attacks included."),
+    include_adversarial: bool = typer.Option(
+        config.DEFAULT_INCLUDE_ADVERSARIAL,
+        help="Download splits with adversarial attacks included.",
+    ),
     limit: int | None = typer.Option(
         None,
         help="Randomly subset each split to this many rows after download (for debugging).",
