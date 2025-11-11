@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 import evaluate
 import pandas as pd
@@ -16,89 +16,124 @@ _LABEL_NORMALIZATION = {
     "human": 0,
     "human-written": 0,
     "human_written": 0,
+    "human_reference": 0,
+    "human-reference": 0,
     "ai": 1,
+    "ai_written": 1,
+    "ai-written": 1,
     "machine": 1,
     "machine-generated": 1,
     "machine_generated": 1,
 }
 
+TEXT_SOURCE_COLUMN = "generation"
+LABEL_SOURCE_COLUMN = "label"
+MODEL_SOURCE_COLUMN = "model"
+
+_HUMAN_MODEL_TOKENS = {"human", "human-reference", "human_reference", "reference"}
+
 
 def load_raid(
     *,
     include_adversarial: bool = config.DEFAULT_INCLUDE_ADVERSARIAL,
-    validation_ratio: float = 0.1,
+    test_ratio: float = 0.2,
     seed: int = 42,
     raw: bool = False,
     limit: int | None = None,
     sample_seed: int = 42,
 ) -> DatasetDict | Dict[str, pd.DataFrame]:
     """
-    Load RAID splits using the official raid-bench helper.
-    When `limit` is set, each split is randomly subsampled (after download) to that many rows.
+    Load the RAID train split via the official raid-bench helper and derive
+    train/test subsets locally.
+    When `limit` is set, the base train split is randomly subsampled (after download) to that many rows.
     """
-    train_df = _prepare_dataframe(load_data(split="train", include_adversarial=include_adversarial))
-    test_df = _prepare_dataframe(load_data(split="test", include_adversarial=include_adversarial))
-    extra_df = _prepare_dataframe(load_data(split="extra", include_adversarial=include_adversarial))
-
-    train_df = _limit_dataframe(train_df, limit, sample_seed, "train")
-    test_df = _limit_dataframe(test_df, limit, sample_seed, "test")
-    extra_df = _limit_dataframe(extra_df, limit, sample_seed, "extra")
+    base_df = _prepare_dataframe(load_data(split="train", include_adversarial=include_adversarial))
+    base_df = _limit_dataframe(base_df, limit, sample_seed)
+    train_df, test_df = _train_test_split(
+        base_df,
+        test_ratio=test_ratio,
+        seed=seed,
+    )
 
     if raw:
-        return {"train": train_df, "test": test_df, "extra": extra_df}
+        return {"train": train_df, "test": test_df}
 
-    train_df, val_df = _split_train_validation(train_df, validation_ratio, seed)
-
-    dataset = DatasetDict(
+    return DatasetDict(
         {
             "train": _to_dataset(train_df),
-            "validation": _to_dataset(val_df),
             "test": _to_dataset(test_df),
         }
     )
-    return dataset
 
 
 def _limit_dataframe(
     df: pd.DataFrame,
     limit: int | None,
     seed: int,
-    name: str,
 ) -> pd.DataFrame:
     if limit is None or len(df) <= limit:
         return df.reset_index(drop=True)
     if limit <= 0:
         raise ValueError("limit must be a positive integer.")
-    min_required = 2 if name == "train" else 1
-    if limit < min_required:
-        raise ValueError(f"limit={limit} is too small for split '{name}'.")
+    if limit < 2:
+        raise ValueError("limit must be at least 2 to create train/test splits.")
     return df.sample(n=limit, random_state=seed).reset_index(drop=True)
 
 
-def _split_train_validation(df: pd.DataFrame, validation_ratio: float, seed: int) -> tuple[pd.DataFrame, pd.DataFrame]:
-    if not 0 < validation_ratio < 1:
-        raise ValueError("validation_ratio must be between 0 and 1.")
+def _train_test_split(
+    df: pd.DataFrame,
+    *,
+    test_ratio: float,
+    seed: int,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if not 0 < test_ratio < 1:
+        raise ValueError("test_ratio must be between 0 and 1.")
+
     stratify = df[config.LABEL_FIELD]
-    train_df, val_df = train_test_split(
+    train_df, test_df = train_test_split(
         df,
-        test_size=validation_ratio,
+        test_size=test_ratio,
         random_state=seed,
         stratify=stratify,
     )
-    return train_df.reset_index(drop=True), val_df.reset_index(drop=True)
+    return train_df.reset_index(drop=True), test_df.reset_index(drop=True)
 
 
 def _prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    df = df[[config.TEXT_FIELD, config.LABEL_FIELD]].dropna(subset=[config.TEXT_FIELD, config.LABEL_FIELD]).copy()
-    label_series = df[config.LABEL_FIELD]
-    if label_series.dtype == object:
-        normalized = label_series.astype(str).str.lower().map(_LABEL_NORMALIZATION)
-        if normalized.isnull().any():
-            raise ValueError("Encountered unknown label values while normalizing RAID labels.")
-        df[config.LABEL_FIELD] = normalized.astype("int64")
-    elif label_series.dtype == bool:
-        df[config.LABEL_FIELD] = label_series.astype("int64")
-    return df
+    if TEXT_SOURCE_COLUMN not in df.columns:
+        raise KeyError(f"Expected '{TEXT_SOURCE_COLUMN}' column in RAID dataframe.")
+    texts = df[TEXT_SOURCE_COLUMN]
+    labels = _extract_labels(df)
+    valid_mask = texts.notna() & labels.notna()
+    if not valid_mask.any():
+        raise ValueError("No valid rows remained after filtering empty text/label entries.")
+
+    prepared = df.loc[valid_mask, [TEXT_SOURCE_COLUMN]].rename(columns={TEXT_SOURCE_COLUMN: config.TEXT_FIELD}).copy()
+    prepared[config.LABEL_FIELD] = labels.loc[valid_mask].to_numpy(dtype="int64")
+    return prepared.reset_index(drop=True)
+
+
+def _extract_labels(df: pd.DataFrame) -> pd.Series:
+    if LABEL_SOURCE_COLUMN in df.columns:
+        series = df[LABEL_SOURCE_COLUMN]
+        return _normalize_label_series(series)
+
+    if MODEL_SOURCE_COLUMN not in df.columns:
+        raise KeyError("RAID dataframe did not contain a label column nor a 'model' column to derive labels from.")
+    series = (~df[MODEL_SOURCE_COLUMN].astype(str).str.lower().isin(_HUMAN_MODEL_TOKENS)).astype(int)
+    return series
+
+
+def _normalize_label_series(series: pd.Series) -> pd.Series:
+    if series.dtype == bool:
+        return series.astype("int64")
+    if pd.api.types.is_numeric_dtype(series):
+        return series.astype("int64")
+    normalized = series.astype(str).str.lower().map(_LABEL_NORMALIZATION)
+    if normalized.isnull().any():
+        unknown = series[normalized.isnull()].unique()
+        raise ValueError(f"Encountered unknown label values while normalizing RAID labels: {unknown[:5]!r}")
+    return normalized.astype("int64")
 
 
 def _to_dataset(df: pd.DataFrame) -> Dataset:

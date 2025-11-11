@@ -18,11 +18,12 @@ def main(
     ),
     limit: int | None = typer.Option(
         None,
-        help="Randomly subset each split to this many rows after download (for debugging).",
+        help="Randomly subset the RAID train split to this many rows after download (for debugging).",
     ),
     sample_seed: int = typer.Option(42, help="Seed used when sampling subsets via --limit."),
+    test_ratio: float = typer.Option(0.2, help="Portion of data used for the held-out test set."),
 ) -> None:
-    """Pre-cache RAID splits using the official raid-bench loader."""
+    """Pre-cache RAID train data and show the derived split sizes."""
     config.ensure_directories()
     console.print("Caching RAID dataset…")
     if limit is not None:
@@ -34,6 +35,7 @@ def main(
         include_adversarial=include_adversarial,
         limit=limit,
         sample_seed=sample_seed,
+        test_ratio=test_ratio,
     )
     for split, df in dataset.items():
         console.print(f"{split}: {len(df):,} samples")

@@ -29,9 +29,10 @@ def main(
     lr: float = typer.Option(config.DEFAULT_TRAINING_CONFIG.learning_rate, help="Learning rate."),
     data_limit: int | None = typer.Option(
         None,
-        help="Randomly subset each RAID split to this many rows (after download) for faster debugging.",
+        help="Randomly subset the RAID train split to this many rows (after download) for faster debugging.",
     ),
     sample_seed: int = typer.Option(42, help="Seed used when applying --data-limit."),
+    test_ratio: float = typer.Option(0.2, help="Portion of the train split held out as the test set."),
 ) -> None:
     """CLI entrypoint for fine-tuning DistilBERT on the RAID benchmark."""
     config.ensure_directories()
@@ -43,7 +44,11 @@ def main(
     )
 
     console.rule("[bold green]Loading dataset")
-    dataset = data.load_raid(limit=data_limit, sample_seed=sample_seed)
+    dataset = data.load_raid(
+        limit=data_limit,
+        sample_seed=sample_seed,
+        test_ratio=test_ratio,
+    )
     tokenizer = data.get_tokenizer(cfg.model_name)
     tokenized = data.tokenize_dataset(dataset, tokenizer, cfg.max_length)
 

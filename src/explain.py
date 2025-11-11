@@ -21,13 +21,18 @@ def main(
     top_k: int = typer.Option(5, help="Number of influential tokens to print."),
     data_limit: int | None = typer.Option(
         None,
-        help="Randomly subset the RAID splits before building the pipeline (after download).",
+        help="Randomly subset the RAID train split before building the pipeline (after download).",
     ),
     sample_seed: int = typer.Option(42, help="Seed used when applying --data-limit."),
+    test_ratio: float = typer.Option(0.2, help="Portion of the train split held out as the test set."),
 ) -> None:
     """Runs a lightweight SHAP analysis on the transformer classifier."""
     config.ensure_directories()
-    dataset = data.load_raid(limit=data_limit, sample_seed=sample_seed)
+    dataset = data.load_raid(
+        limit=data_limit,
+        sample_seed=sample_seed,
+        test_ratio=test_ratio,
+    )
     test_texts = dataset["test"][config.TEXT_FIELD][:num_samples]
 
     console.rule("[bold green]Loading pipeline")

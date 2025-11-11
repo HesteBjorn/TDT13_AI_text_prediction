@@ -22,13 +22,18 @@ def main(
     run_prompt_baseline: bool = typer.Option(True, help="Also run the heuristic prompt detector."),
     data_limit: Optional[int] = typer.Option(
         None,
-        help="Randomly subset each RAID split before tokenization (after download).",
+        help="Randomly subset the RAID train split before tokenization (after download).",
     ),
     sample_seed: int = typer.Option(42, help="Seed used when applying --data-limit."),
+    test_ratio: float = typer.Option(0.2, help="Portion of the train split held out as the test set."),
 ) -> None:
     """Benchmark the transformer classifier and optional prompt baseline."""
     config.ensure_directories()
-    dataset = data.load_raid(limit=data_limit, sample_seed=sample_seed)
+    dataset = data.load_raid(
+        limit=data_limit,
+        sample_seed=sample_seed,
+        test_ratio=test_ratio,
+    )
     if sample_limit is not None:
         sample_size = min(sample_limit, len(dataset["test"]))
         dataset = DatasetDict({split: split_ds for split, split_ds in dataset.items()})

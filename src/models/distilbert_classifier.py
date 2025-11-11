@@ -53,7 +53,7 @@ class DistilBERTClassifier:
             model=self.model,
             args=args,
             train_dataset=tokenized_dataset["train"],
-            eval_dataset=tokenized_dataset["validation"],
+            eval_dataset=tokenized_dataset["test"],
             tokenizer=self.tokenizer,
             compute_metrics=data.build_metrics(),
         )
