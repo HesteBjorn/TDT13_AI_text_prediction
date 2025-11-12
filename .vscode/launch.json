@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Train DistilBERT (debug subset)",
+      "type": "python",
+      "request": "launch",
+      "module": "src.training",
+      "console": "integratedTerminal",
+      "args": [
+        "--output-dir",
+        "models/distilbert-debug",
+        "--data-limit",
+        "200",
+        "--test-ratio",
+        "0.2",
+        "--epochs",
+        "1",
+        "--batch-size",
+        "8",
+        "--logging-steps",
+        "1"
+        // python -m src.training --output-dir models/distilbert-debug --data-limit 200 --test-ratio 0.2 --epochs 1 --batch-size 8 --logging-steps 1
+      ]
+    },
+    {
+      "name": "Evaluate checkpoint",
+      "type": "python",
+      "request": "launch",
+      "module": "src.evaluate",
+      "console": "integratedTerminal",
+      "args": [
+        "--checkpoint-path",
+        "models/distilbert-debug",
+        "--data-limit",
+        "2000",
+        "--test-ratio",
+        "0.2",
+        "--sample-limit",
+        "200"
+      ]
+    },
+    {
+      "name": "SHAP explain",
+      "type": "python",
+      "request": "launch",
+      "module": "src.explain",
+      "console": "integratedTerminal",
+      "args": [
+        "--checkpoint-path",
+        "models/distilbert-debug",
+        "--data-limit",
+        "2000",
+        "--test-ratio",
+        "0.2",
+        "--num-samples",
+        "8"
+      ]
+    }
+  ]
+}
