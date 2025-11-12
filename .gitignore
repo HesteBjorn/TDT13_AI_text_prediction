@@ -3,6 +3,8 @@ src/models/__pycache__
 src/utils/__pycache__
 src/tests/__pycache__
 
+models
+
 data/hf-cache
 
 .env
