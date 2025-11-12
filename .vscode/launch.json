@@ -33,11 +33,10 @@
         "--checkpoint-path",
         "models/distilbert-debug",
         "--data-limit",
-        "2000",
+        "200",
         "--test-ratio",
-        "0.2",
-        "--sample-limit",
-        "200"
+        "0.2"
+        // --checkpoint-path models/distilbert-debug --data-limit 200 --test-ratio 0.2
       ]
     },
     {

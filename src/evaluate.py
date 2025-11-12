@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from datasets import DatasetDict
 from rich.console import Console
 from sklearn.metrics import (
     accuracy_score,
@@ -25,7 +24,6 @@ console = Console()
 @app.command()
 def main(
     checkpoint_path: Path = typer.Option(..., help="Path to a fine-tuned transformer checkpoint."),
-    sample_limit: Optional[int] = typer.Option(None, help="Limit the number of test samples."),
     run_prompt_baseline: bool = typer.Option(True, help="Also run the heuristic prompt detector."),
     data_limit: Optional[int] = typer.Option(
         None,
@@ -41,10 +39,6 @@ def main(
         sample_seed=sample_seed,
         test_ratio=test_ratio,
     )
-    if sample_limit is not None:
-        sample_size = min(sample_limit, len(dataset["test"]))
-        dataset = DatasetDict({split: split_ds for split, split_ds in dataset.items()})
-        dataset["test"] = dataset["test"].select(range(sample_size))
     test_dataset = dataset["test"]
 
     console.rule("[bold blue]Transformer checkpoint")
