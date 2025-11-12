@@ -33,6 +33,9 @@ def main(
     ),
     sample_seed: int = typer.Option(42, help="Seed used when applying --data-limit."),
     test_ratio: float = typer.Option(0.2, help="Portion of the train split held out as the test set."),
+    logging_steps: int = typer.Option(
+        config.DEFAULT_TRAINING_CONFIG.logging_steps, help="How often to log training loss (in steps)."
+    ),
 ) -> None:
     """CLI entrypoint for fine-tuning DistilBERT on the RAID benchmark."""
     config.ensure_directories()
@@ -41,6 +44,7 @@ def main(
         num_train_epochs=epochs,
         per_device_batch_size=batch_size,
         learning_rate=lr,
+        logging_steps=logging_steps,
     )
 
     console.rule("[bold green]Loading dataset")
