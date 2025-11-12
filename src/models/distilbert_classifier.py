@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -8,6 +8,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     Trainer,
     TrainingArguments,
+    PreTrainedTokenizerBase,
     set_seed,
 )
 
@@ -16,7 +17,9 @@ from .. import config, data
 
 @dataclass(slots=True)
 class DistilBERTClassifier:
-    training_config: config.TrainingConfig = config.DEFAULT_TRAINING_CONFIG
+    training_config: config.TrainingConfig = field(default_factory=config.TrainingConfig)
+    tokenizer: PreTrainedTokenizerBase = field(init=False)
+    model: AutoModelForSequenceClassification = field(init=False)
 
     def __post_init__(self) -> None:
         self.tokenizer = data.get_tokenizer(self.training_config.model_name)
@@ -40,7 +43,7 @@ class DistilBERTClassifier:
             learning_rate=self.training_config.learning_rate,
             weight_decay=self.training_config.weight_decay,
             warmup_ratio=self.training_config.warmup_ratio,
-            evaluation_strategy=self.training_config.evaluation_strategy,
+            eval_strategy=self.training_config.evaluation_strategy,
             num_train_epochs=self.training_config.num_train_epochs,
             logging_steps=self.training_config.logging_steps,
             save_strategy="epoch",
