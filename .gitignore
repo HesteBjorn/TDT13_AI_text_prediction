@@ -1,0 +1,9 @@
+src/models
+src/__pycache__
+src/tests/__pycache__
+
+data/hf-cache
+
+.env
+.venv
+.vscode
