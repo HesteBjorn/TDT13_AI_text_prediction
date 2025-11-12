@@ -6,7 +6,14 @@ from typing import Optional
 import typer
 from datasets import DatasetDict
 from rich.console import Console
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+    confusion_matrix,
+)
 from . import config, data
 from .models.distilbert_classifier import DistilBERTClassifier
 from .models.llm_prompt import HeuristicDetector
@@ -58,12 +65,17 @@ def main(
     labels = test_dataset[config.LABEL_FIELD]
     preds = detector.predict(texts)
     scores = detector.predict_proba(texts)
+    tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
     prompt_metrics = {
         "accuracy": float(accuracy_score(labels, preds)),
         "precision": float(precision_score(labels, preds)),
         "recall": float(recall_score(labels, preds)),
         "f1": float(f1_score(labels, preds)),
         "roc_auc": float(roc_auc_score(labels, scores)),
+        "tp": int(tp),
+        "tn": int(tn),
+        "fp": int(fp),
+        "fn": int(fn),
     }
     console.print(prompt_metrics)
 

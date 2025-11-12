@@ -68,7 +68,7 @@ class HeuristicDetector:
     threshold: float = 0.5
 
     def predict(self, texts: Iterable[str]) -> List[int]:
-        scores = self.predict_scores(texts)
+        scores = self.predict_proba(texts)
         return (scores > self.threshold).astype(int).tolist()
 
     def predict_proba(self, texts: Iterable[str]) -> np.ndarray:

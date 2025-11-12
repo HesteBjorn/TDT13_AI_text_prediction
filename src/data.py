@@ -188,12 +188,22 @@ def build_metrics():
         logits, labels = eval_pred
         predictions = logits.argmax(axis=-1)
         pos_scores = logits[:, 1] if logits.ndim == 2 and logits.shape[1] > 1 else logits.squeeze()
+        labels_int = labels.astype(int)
+        preds_int = predictions.astype(int)
+        tp = int(((preds_int == 1) & (labels_int == 1)).sum())
+        tn = int(((preds_int == 0) & (labels_int == 0)).sum())
+        fp = int(((preds_int == 1) & (labels_int == 0)).sum())
+        fn = int(((preds_int == 0) & (labels_int == 1)).sum())
         return {
             "accuracy": accuracy.compute(predictions=predictions, references=labels)["accuracy"],
             "f1": f1.compute(predictions=predictions, references=labels)["f1"],
             "precision": precision.compute(predictions=predictions, references=labels)["precision"],
             "recall": recall.compute(predictions=predictions, references=labels)["recall"],
             "roc_auc": roc_auc.compute(prediction_scores=pos_scores, references=labels)["roc_auc"],
+            "tp": tp,
+            "tn": tn,
+            "fp": fp,
+            "fn": fn,
         }
 
     return compute_metrics
