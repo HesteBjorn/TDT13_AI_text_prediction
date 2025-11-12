@@ -6,7 +6,7 @@ from typing import Optional
 import typer
 from datasets import DatasetDict
 from rich.console import Console
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 from . import config, data
 from .models.distilbert_classifier import DistilBERTClassifier
 from .models.llm_prompt import HeuristicDetector
@@ -54,11 +54,16 @@ def main(
 
     console.rule("[bold blue]Prompt baseline (heuristic placeholder)")
     detector = HeuristicDetector()
-    preds = detector.predict(test_dataset[config.TEXT_FIELD])
+    texts = test_dataset[config.TEXT_FIELD]
     labels = test_dataset[config.LABEL_FIELD]
+    preds = detector.predict(texts)
+    scores = detector.predict_proba(texts)
     prompt_metrics = {
         "accuracy": float(accuracy_score(labels, preds)),
+        "precision": float(precision_score(labels, preds)),
+        "recall": float(recall_score(labels, preds)),
         "f1": float(f1_score(labels, preds)),
+        "roc_auc": float(roc_auc_score(labels, scores)),
     }
     console.print(prompt_metrics)
 

@@ -68,6 +68,10 @@ class HeuristicDetector:
     threshold: float = 0.5
 
     def predict(self, texts: Iterable[str]) -> List[int]:
+        scores = self.predict_scores(texts)
+        return (scores > self.threshold).astype(int).tolist()
+
+    def predict_proba(self, texts: Iterable[str]) -> np.ndarray:
         scores = []
         for text in texts:
             tokens = text.split()
@@ -78,5 +82,4 @@ class HeuristicDetector:
             stop_ratio = sum(t.lower() in self.stopwords for t in tokens) / len(tokens)
             score = (avg_len / 10.0) * 0.5 + (1 - stop_ratio) * 0.5
             scores.append(score)
-        scores = np.array(scores)
-        return (scores > self.threshold).astype(int).tolist()
+        return np.array(scores, dtype=float)
