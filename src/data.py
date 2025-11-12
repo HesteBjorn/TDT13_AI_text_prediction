@@ -180,13 +180,20 @@ def tokenize_dataset(
 def build_metrics():
     accuracy = evaluate.load("accuracy")
     f1 = evaluate.load("f1")
+    precision = evaluate.load("precision")
+    recall = evaluate.load("recall")
+    roc_auc = evaluate.load("roc_auc")
 
     def compute_metrics(eval_pred: Tuple[Any, Any]) -> Dict[str, float]:
         logits, labels = eval_pred
         predictions = logits.argmax(axis=-1)
+        pos_scores = logits[:, 1] if logits.ndim == 2 and logits.shape[1] > 1 else logits.squeeze()
         return {
             "accuracy": accuracy.compute(predictions=predictions, references=labels)["accuracy"],
             "f1": f1.compute(predictions=predictions, references=labels)["f1"],
+            "precision": precision.compute(predictions=predictions, references=labels)["precision"],
+            "recall": recall.compute(predictions=predictions, references=labels)["recall"],
+            "roc_auc": roc_auc.compute(prediction_scores=pos_scores, references=labels)["roc_auc"],
         }
 
     return compute_metrics
