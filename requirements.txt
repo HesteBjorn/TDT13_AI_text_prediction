@@ -11,3 +11,6 @@ shap>=0.45.0
 raid-bench>=0.2.0
 transformers[torch]
 matplotlib
+protobuf
+sentencepiece
+huggingface_hub<1

@@ -15,16 +15,21 @@ from sklearn.metrics import (
 )
 from . import config, data
 from .models.distilbert_classifier import DistilBERTClassifier
-from .models.llm_prompt import HeuristicDetector
+from .models.llm_prompt import AVAILABLE_PROMPT_MODELS, load_prompt_detector
 
 app = typer.Typer(add_completion=False)
 console = Console()
+PROMPT_MODEL_CHOICES = ", ".join(AVAILABLE_PROMPT_MODELS)
 
 
 @app.command()
 def main(
     checkpoint_path: Path = typer.Option(..., help="Path to a fine-tuned transformer checkpoint."),
-    run_prompt_baseline: bool = typer.Option(True, help="Also run the heuristic prompt detector."),
+    run_prompt_baseline: bool = typer.Option(True, help="Also run the prompt-based detector baseline."),
+    prompt_model: str = typer.Option(
+        "llama-3.1-8b-instruct",
+        help=f"Prompt detector to benchmark ({PROMPT_MODEL_CHOICES}).",
+    ),
     data_limit: Optional[int] = typer.Option(
         None,
         help="Randomly subset the RAID train split before tokenization (after download).",
@@ -53,8 +58,8 @@ def main(
     if not run_prompt_baseline:
         return
 
-    console.rule("[bold blue]Prompt baseline (heuristic placeholder)")
-    detector = HeuristicDetector()
+    console.rule(f"[bold blue]Prompt baseline ({prompt_model})")
+    detector = load_prompt_detector(prompt_model)
     texts = test_dataset[config.TEXT_FIELD]
     labels = test_dataset[config.LABEL_FIELD]
     preds = detector.predict(texts)
