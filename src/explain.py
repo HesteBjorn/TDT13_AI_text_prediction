@@ -33,7 +33,9 @@ def main(
         sample_seed=sample_seed,
         test_ratio=test_ratio,
     )
-    test_texts = dataset["test"][config.TEXT_FIELD][:num_samples]
+    test_split = dataset["test"]
+    test_texts = test_split[config.TEXT_FIELD][:num_samples]
+    test_labels = test_split[config.LABEL_FIELD][:num_samples]
 
     console.rule("[bold green]Loading pipeline")
     clf = pipeline(
@@ -50,13 +52,15 @@ def main(
     console.rule("[bold green]Computing SHAP values")
     shap_values = explainer(test_texts)
 
-    for idx, text in enumerate(test_texts, start=1):
+    for idx, (text, label_value) in enumerate(zip(test_texts, test_labels, strict=False), start=1):
         token_scores = shap_values.values[idx - 1][0]
         tokens = shap_values.data[idx - 1][0]
         order = np.argsort(-np.abs(token_scores))[:top_k]
         highlights = [(tokens[i], float(token_scores[i])) for i in order]
         console.print(f"[bold]Example {idx}[/bold]")
         console.print(text[:400] + ("..." if len(text) > 400 else ""))
+        truth = "AI" if int(label_value) == 1 else "Human"
+        console.print(f"Ground truth: {truth}")
         console.print(highlights)
 
 
