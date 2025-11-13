@@ -6,6 +6,7 @@ from typing import Any, Callable, Iterable, List, Protocol
 import numpy as np
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from rich.progress import track
 
 DEFAULT_PROMPT = """You are an expert AI-text detector. Judge whether the passage was written by an AI system or a human author.
 
@@ -48,14 +49,26 @@ class PromptDetector:
     prompt_template: str = DEFAULT_PROMPT
     fallback_positive: float = 0.7
     fallback_negative: float = 0.3
+    show_progress: bool = False
+    progress_description: str = "Prompt baseline inference"
 
     def predict(self, texts: Iterable[str]) -> List[int]:
         scores = self.predict_proba(texts)
         return (scores >= 0.5).astype(int).tolist()
 
+    def predict_with_scores(self, texts: Iterable[str]) -> tuple[List[int], np.ndarray]:
+        scores = self.predict_proba(texts)
+        preds = (scores >= 0.5).astype(int).tolist()
+        return preds, scores
+
     def predict_proba(self, texts: Iterable[str]) -> np.ndarray:
         probs: List[float] = []
-        for text in texts:
+        iterable: Iterable[str] = texts
+        if self.show_progress:
+            if not isinstance(texts, list):
+                texts = list(texts)
+            iterable = track(texts, description=self.progress_description)
+        for text in iterable:
             prompt = self.prompt_template.format(passage=text)
             response = self.llm(prompt).strip().lower()
             label, prob_ai = self._parse_response(response)
@@ -177,6 +190,11 @@ class HeuristicDetector:
             score = (avg_len / 10.0) * 0.5 + (1 - stop_ratio) * 0.5
             scores.append(score)
         return np.array(scores, dtype=float)
+
+    def predict_with_scores(self, texts: Iterable[str]) -> tuple[List[int], np.ndarray]:
+        scores = self.predict_proba(texts)
+        preds = (scores > self.threshold).astype(int).tolist()
+        return preds, scores
 
 
 def build_llama31_detector() -> PromptDetector:
