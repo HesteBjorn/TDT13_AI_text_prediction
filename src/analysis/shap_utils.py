@@ -7,6 +7,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 import shap
+from datasets import Dataset
 from transformers import pipeline
 
 from .. import config, data
@@ -183,7 +184,14 @@ def compute_shap_values(
     """Compute SHAP values for a set of texts using the provided pipeline."""
     masker = shap.maskers.Text(clf.tokenizer)
     explainer = shap.Explainer(clf, masker=masker, algorithm=algorithm)
-    return explainer(texts, batch_size=batch_size)
+    if not texts:
+        raise ValueError("No texts provided for SHAP computation.")
+
+    if batch_size is None or batch_size <= 0:
+        batch_size = len(texts)
+
+    dataset = Dataset.from_dict({config.TEXT_FIELD: texts})
+    return explainer(dataset[config.TEXT_FIELD], batch_size=batch_size)
 
 
 def aggregate_token_importance(shap_values, top_k: int = 20) -> pd.DataFrame:
