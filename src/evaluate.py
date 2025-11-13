@@ -30,6 +30,10 @@ def main(
         "llama-3.1-8b-instruct",
         help=f"Prompt detector to benchmark ({PROMPT_MODEL_CHOICES}).",
     ),
+    prompt_progress: bool = typer.Option(
+        True,
+        help="Show a progress bar while running prompt-based inference (if supported).",
+    ),
     data_limit: Optional[int] = typer.Option(
         None,
         help="Randomly subset the RAID train split before tokenization (after download).",
@@ -60,10 +64,15 @@ def main(
 
     console.rule(f"[bold blue]Prompt baseline ({prompt_model})")
     detector = load_prompt_detector(prompt_model)
+    if hasattr(detector, "show_progress"):
+        setattr(detector, "show_progress", prompt_progress)
     texts = test_dataset[config.TEXT_FIELD]
     labels = test_dataset[config.LABEL_FIELD]
-    preds = detector.predict(texts)
-    scores = detector.predict_proba(texts)
+    if hasattr(detector, "predict_with_scores"):
+        preds, scores = detector.predict_with_scores(texts)
+    else:
+        preds = detector.predict(texts)
+        scores = detector.predict_proba(texts)  # type: ignore[assignment]
     tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
     prompt_metrics = {
         "accuracy": float(accuracy_score(labels, preds)),
