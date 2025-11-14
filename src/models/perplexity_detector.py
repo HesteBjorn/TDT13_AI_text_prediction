@@ -39,6 +39,7 @@ class PerplexityDetector:
     _device: torch.device = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        """Load tokenizer/model weights and move them to the configured device."""
         resolved_device = self.device or ("cuda" if torch.cuda.is_available() else "cpu")
         self._device = torch.device(resolved_device)
         dtype = self.torch_dtype
@@ -58,20 +59,56 @@ class PerplexityDetector:
         self.model.eval()
 
     def predict(self, texts: Iterable[str]) -> List[int]:
+        """
+        Return binary AI/human predictions for each text based on median perplexity.
+
+        Args:
+            texts: Iterable of raw strings to score.
+
+        Returns:
+            List of 0/1 predictions (1=AI) aligned with the input order.
+        """
         stats = self.score(texts)
         return self.classify_nll(stats.nll).tolist()
 
     def predict_proba(self, texts: Iterable[str]) -> np.ndarray:
+        """
+        Return normalized pseudo-probabilities derived from negative log-likelihoods.
+
+        Args:
+            texts: Iterable of raw strings to score.
+
+        Returns:
+            Array of floats in [0,1] where higher values indicate stronger AI likelihood.
+        """
         stats = self.score(texts)
         return self.normalize_scores(stats.nll)
 
     def predict_with_scores(self, texts: Iterable[str]) -> tuple[List[int], np.ndarray]:
+        """
+        Convenience helper that returns both binary predictions and normalized scores.
+
+        Args:
+            texts: Iterable of raw strings to score.
+
+        Returns:
+            Tuple (predictions list, score array) aligned with the input order.
+        """
         stats = self.score(texts)
         probs = self.normalize_scores(stats.nll)
         preds = self.classify_nll(stats.nll).tolist()
         return preds, probs
 
     def score(self, texts: Iterable[str]) -> PerplexityStatistics:
+        """
+        Compute per-text negative log-likelihood, mean log-probability, and stddev.
+
+        Args:
+            texts: Iterable of raw strings.
+
+        Returns:
+            PerplexityStatistics containing arrays of nll/mean/std aligned with inputs.
+        """
         buffer = list(texts)
         if not buffer:
             empty = np.empty(0, dtype=np.float32)
@@ -97,6 +134,15 @@ class PerplexityDetector:
         )
 
     def normalize_scores(self, nll: np.ndarray) -> np.ndarray:
+        """
+        Min-max normalize negative log-likelihoods into [0, 1] scores.
+
+        Args:
+            nll: Array of per-example negative log-likelihoods.
+
+        Returns:
+            Scores where 1 corresponds to the lowest (best) NLL in the batch.
+        """
         if nll.size == 0:
             return np.empty(0, dtype=np.float32)
         finite_mask = np.isfinite(nll)
@@ -111,6 +157,15 @@ class PerplexityDetector:
         return scores
 
     def classify_nll(self, nll: np.ndarray) -> np.ndarray:
+        """
+        Convert NLL values into binary predictions using the configured threshold.
+
+        Args:
+            nll: Array of per-example negative log-likelihoods.
+
+        Returns:
+            Integer array of predictions (1=AI, 0=human).
+        """
         if nll.size == 0:
             return np.empty(0, dtype=int)
         threshold = self._resolve_threshold(nll)
@@ -119,6 +174,12 @@ class PerplexityDetector:
         return preds
 
     def _resolve_threshold(self, nll: np.ndarray) -> float:
+        """
+        Determine the decision threshold for classification.
+
+        Uses the explicit `decision_threshold` if provided; otherwise, falls back
+        to the median of finite NLL values.
+        """
         if self.decision_threshold is not None:
             return self.decision_threshold
         finite = nll[np.isfinite(nll)]
@@ -128,6 +189,15 @@ class PerplexityDetector:
 
     @torch.no_grad()
     def _score_batch(self, texts: Sequence[str]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Score a single batch of texts and return NLL/mean/std statistics.
+
+        Args:
+            texts: Sequence of raw strings (up to `batch_size` long).
+
+        Returns:
+            Tuple of numpy arrays (nll, mean_logp, std_logp), each shaped [batch].
+        """
         # Tokenize the batch and create attention masks/padding so every sample has equal length.
         tokenized = self.tokenizer(
             list(texts),
@@ -150,7 +220,7 @@ class PerplexityDetector:
         log_probs = nn.functional.log_softmax(logits, dim=-1)  # convert logits to log-probabilities
         safe_labels = shift_labels.clone()
         safe_labels[~valid_mask] = 0  # dummy label for padding; will be zeroed out immediately
-        gathered = log_probs.gather(-1, safe_labels.unsqueeze(-1)).squeeze(-1)  # log p(true_token)
+        gathered = log_probs.gather(-1, safe_labels.unsqueeze(-1)).squeeze(-1)  # log-probability assigned to the true next token
         gathered = torch.where(valid_mask, gathered, torch.zeros_like(gathered))  # zero out padding
         token_counts = valid_mask.sum(dim=-1)  # how many real tokens each example contributes
 
