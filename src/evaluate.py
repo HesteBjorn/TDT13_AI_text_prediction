@@ -30,7 +30,7 @@ def main(
     run_prompt_baseline: bool = typer.Option(True, help="Also run the prompt-based detector baseline."),
     run_perplexity_baseline: bool = typer.Option(True, help="Also run a frozen-LM perplexity detector."),
     prompt_model: str = typer.Option(
-        "llama-3.1-8b-instruct",
+        "llama-3.2-1b-instruct",
         help=f"Prompt detector to benchmark ({PROMPT_MODEL_CHOICES}).",
     ),
     prompt_progress: bool = typer.Option(

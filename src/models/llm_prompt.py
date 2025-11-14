@@ -109,7 +109,7 @@ class Llama31ChatLLM:
     Minimal local HF client for the currently selected chat checkpoint.
     """
 
-    model_name: str = "meta-llama/Llama-3.1-8B-Instruct"
+    model_name: str = "meta-llama/Llama-3.2-1B-Instruct"
     max_new_tokens: int = 64
     temperature: float = 0.0
     top_p: float = 0.9
@@ -204,7 +204,7 @@ def build_llama31_detector() -> PromptDetector:
 
 PROMPT_BASELINE_REGISTRY: dict[str, Callable[[], object]] = {
     "heuristic": HeuristicDetector,
-    "llama-3.1-8b-instruct": build_llama31_detector,
+    "llama-3.2-1b-instruct": build_llama31_detector,
 }
 
 AVAILABLE_PROMPT_MODELS = tuple(PROMPT_BASELINE_REGISTRY.keys())
