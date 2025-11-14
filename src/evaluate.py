@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import typer
 from rich.console import Console
 from sklearn.metrics import (
@@ -16,6 +17,7 @@ from sklearn.metrics import (
 from . import config, data
 from .models.distilbert_classifier import DistilBERTClassifier
 from .models.llm_prompt import AVAILABLE_PROMPT_MODELS, load_prompt_detector
+from .models.perplexity_detector import PerplexityDetector
 
 app = typer.Typer(add_completion=False)
 console = Console()
@@ -26,6 +28,7 @@ PROMPT_MODEL_CHOICES = ", ".join(AVAILABLE_PROMPT_MODELS)
 def main(
     checkpoint_path: Path = typer.Option(..., help="Path to a fine-tuned transformer checkpoint."),
     run_prompt_baseline: bool = typer.Option(True, help="Also run the prompt-based detector baseline."),
+    run_perplexity_baseline: bool = typer.Option(True, help="Also run a frozen-LM perplexity detector."),
     prompt_model: str = typer.Option(
         "llama-3.1-8b-instruct",
         help=f"Prompt detector to benchmark ({PROMPT_MODEL_CHOICES}).",
@@ -40,6 +43,14 @@ def main(
     ),
     sample_seed: int = typer.Option(42, help="Seed used when applying --data-limit."),
     test_ratio: float = typer.Option(0.2, help="Portion of the train split held out as the test set."),
+    perplexity_model: str = typer.Option("gpt2", help="HF causal LM checkpoint used for perplexity scoring."),
+    perplexity_batch_size: int = typer.Option(8, help="Batch size for perplexity inference."),
+    perplexity_max_length: int = typer.Option(1024, help="Token limit when scoring with the LM."),
+    perplexity_threshold: Optional[float] = typer.Option(
+        None,
+        help="Optional manual decision boundary in average NLL space (lower = more AI).",
+    ),
+    perplexity_progress: bool = typer.Option(False, help="Show a progress bar for perplexity scoring."),
 ) -> None:
     """Benchmark the transformer classifier and optional prompt baseline."""
     config.ensure_directories()
@@ -58,6 +69,37 @@ def main(
     classifier = DistilBERTClassifier(training_config=cfg)
     metrics = classifier.evaluate(tokenized)
     console.print(metrics)
+
+    if run_perplexity_baseline:
+        console.rule(f"[bold blue]Perplexity baseline ({perplexity_model})")
+        texts = test_dataset[config.TEXT_FIELD]
+        labels = test_dataset[config.LABEL_FIELD]
+        ppl_detector = PerplexityDetector(
+            model_name=perplexity_model,
+            batch_size=perplexity_batch_size,
+            max_length=perplexity_max_length,
+            decision_threshold=perplexity_threshold,
+            show_progress=perplexity_progress,
+        )
+        stats = ppl_detector.score(texts)
+        scores = ppl_detector.normalize_scores(stats.nll)
+        preds = ppl_detector.classify_nll(stats.nll)
+        tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
+        finite_mask = np.isfinite(stats.nll)
+        avg_nll = float(stats.nll[finite_mask].mean()) if finite_mask.any() else float("nan")
+        ppl_metrics = {
+            "accuracy": float(accuracy_score(labels, preds)),
+            "precision": float(precision_score(labels, preds)),
+            "recall": float(recall_score(labels, preds)),
+            "f1": float(f1_score(labels, preds)),
+            "roc_auc": float(roc_auc_score(labels, scores)),
+            "tp": int(tp),
+            "tn": int(tn),
+            "fp": int(fp),
+            "fn": int(fn),
+            "avg_nll": avg_nll,
+        }
+        console.print(ppl_metrics)
 
     if not run_prompt_baseline:
         return

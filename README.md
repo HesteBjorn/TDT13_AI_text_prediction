@@ -20,7 +20,8 @@ This repo provides a minimal-yet-extensible scaffold for comparing simple AI-tex
 │   ├── data.py            # RAID loading, preprocessing, and splits
 │   ├── models/
 │   │   ├── distilbert_classifier.py  # Hugging Face Trainer wrapper
-│   │   └── llm_prompt.py             # Prompt-based baseline stub
+│   │   ├── llm_prompt.py             # Prompt-based baseline stub
+│   │   └── perplexity_detector.py    # Frozen-LM perplexity detector
 │   ├── training.py        # CLI for fine-tuning transformer models
 │   ├── evaluate.py        # Runs benchmarks for trained checkpoints & prompt models
 │   └── explain.py         # SHAP analysis helpers
@@ -41,9 +42,11 @@ This repo provides a minimal-yet-extensible scaffold for comparing simple AI-tex
    ```bash
    python -m src.training --output-dir models/distilbert-test --data-limit 50000
    ```
-4. **Evaluate both models** (transformer checkpoint + prompt baseline):
+4. **Evaluate detectors** (transformer checkpoint + perplexity + optional prompt baseline):
    ```bash
    python -m src.evaluate --checkpoint-path models/distilbert-test
+   # Skip a baseline via --no-run-perplexity-baseline or --no-run-prompt-baseline
+   # Swap the frozen LM with --perplexity-model EleutherAI/pythia-410m, etc.
    ```
 5. **Run SHAP explanations**:
    ```bash
@@ -59,3 +62,10 @@ This repo provides a minimal-yet-extensible scaffold for comparing simple AI-tex
 - Adversarial attacks are excluded by default (matching `config.DEFAULT_INCLUDE_ADVERSARIAL=False`); pass `--include-adversarial` to `scripts/download_raid.py` or call `load_raid(include_adversarial=True)` when you want the full setup.
 - Add experiment tracking (Weights & Biases, MLflow, etc.) by extending `training.py`.
 - The SHAP utility uses the trained classifier's probability outputs to surface feature attributions; consider pairing with linguistic feature engineering for richer narratives.
+
+### Perplexity baseline
+
+- `PerplexityDetector` loads a frozen causal LM (default: `gpt2`) to compute average negative log-likelihood and log-prob variance per text—no RAID supervision required.
+- The evaluation CLI min–max normalizes NLLs on the fly to provide ROC-ready scores and uses a median threshold for binary predictions; pass `--perplexity-threshold` to override.
+- Swap checkpoints with `--perplexity-model` (e.g., `EleutherAI/pythia-410m`), adjust sequence length via `--perplexity-max-length`, and enable progress reporting with `--perplexity-progress` when running large splits.
+- Calibration / learned decision heads are intentionally deferred; the stored `PerplexityStatistics` make it easy to plug in a calibrator later without rewriting the scorer.
