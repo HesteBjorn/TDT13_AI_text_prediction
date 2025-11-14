@@ -128,6 +128,7 @@ class PerplexityDetector:
 
     @torch.no_grad()
     def _score_batch(self, texts: Sequence[str]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        # Tokenize the batch and create attention masks/padding so every sample has equal length.
         tokenized = self.tokenizer(
             list(texts),
             return_tensors="pt",
@@ -137,18 +138,23 @@ class PerplexityDetector:
         )
         input_ids = tokenized["input_ids"].to(self._device)
         attention_mask = tokenized["attention_mask"].to(self._device)
+        # Create labels that ignore padding tokens (set to -100 so the loss skips them).
         labels = input_ids.clone()
         labels[attention_mask == 0] = -100
 
+        # Forward pass with teacher-forcing labels so the model returns per-token logits and loss.
         outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-        logits = outputs.logits[:, :-1, :]
-        shift_labels = labels[:, 1:]
-        valid_mask = shift_labels != -100
-        log_probs = nn.functional.log_softmax(logits, dim=-1)
-        gathered = log_probs.gather(-1, shift_labels.unsqueeze(-1)).squeeze(-1)
-        gathered = torch.where(valid_mask, gathered, torch.zeros_like(gathered))
-        token_counts = valid_mask.sum(dim=-1)
+        logits = outputs.logits[:, :-1, :]  # drop final step since each token predicts the *next* one
+        shift_labels = labels[:, 1:]  # align labels with the shifted logits for next-token prediction
+        valid_mask = shift_labels != -100  # only score real tokens, ignore padding/masked positions
+        log_probs = nn.functional.log_softmax(logits, dim=-1)  # convert logits to log-probabilities
+        safe_labels = shift_labels.clone()
+        safe_labels[~valid_mask] = 0  # dummy label for padding; will be zeroed out immediately
+        gathered = log_probs.gather(-1, safe_labels.unsqueeze(-1)).squeeze(-1)  # log p(true_token)
+        gathered = torch.where(valid_mask, gathered, torch.zeros_like(gathered))  # zero out padding
+        token_counts = valid_mask.sum(dim=-1)  # how many real tokens each example contributes
 
+        # Collapse token-level log-probs into summary stats per example.
         sum_logp = gathered.sum(dim=-1)
         mean_logp = torch.where(token_counts > 0, sum_logp / token_counts, torch.zeros_like(sum_logp))
         variance = torch.where(
