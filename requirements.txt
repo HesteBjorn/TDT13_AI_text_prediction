@@ -14,3 +14,4 @@ matplotlib
 protobuf
 sentencepiece
 huggingface_hub<1
+seaborn
