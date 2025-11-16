@@ -30,8 +30,9 @@ class PerplexityDetector:
     max_length: int = 1024
     device: str | torch.device | None = None
     torch_dtype: torch.dtype | None = None
-    decision_threshold: float | None = None
+    decision_threshold: float | None = 1.1
     normalization_eps: float = 1e-6
+    logistic_scale: float = 0.15
     show_progress: bool = False
     progress_description: str = "Perplexity baseline inference"
     tokenizer: PreTrainedTokenizerBase = field(init=False)
@@ -135,25 +136,25 @@ class PerplexityDetector:
 
     def normalize_scores(self, nll: np.ndarray) -> np.ndarray:
         """
-        Min-max normalize negative log-likelihoods into [0, 1] scores.
+        Map NLL values to heuristic probabilities via a logistic curve.
 
         Args:
             nll: Array of per-example negative log-likelihoods.
 
         Returns:
-            Scores where 1 corresponds to the lowest (best) NLL in the batch.
+            Scores in [0, 1] where higher values mean more AI-like text.
         """
         if nll.size == 0:
             return np.empty(0, dtype=np.float32)
-        finite_mask = np.isfinite(nll)
         scores = np.full(nll.shape, 0.5, dtype=np.float32)
+        finite_mask = np.isfinite(nll)
         if not finite_mask.any():
             return scores
-        finite_vals = nll[finite_mask]
-        max_val = float(finite_vals.max())
-        min_val = float(finite_vals.min())
-        denom = max(max_val - min_val, self.normalization_eps)
-        scores[finite_mask] = (max_val - finite_vals) / denom
+        threshold = self.decision_threshold if self.decision_threshold is not None else self._resolve_threshold(nll)
+        scale = max(self.logistic_scale, self.normalization_eps)
+        centered = (nll[finite_mask] - threshold) / scale
+        centered = np.clip(centered, -60, 60)
+        scores[finite_mask] = 1.0 / (1.0 + np.exp(centered))
         return scores
 
     def classify_nll(self, nll: np.ndarray) -> np.ndarray:

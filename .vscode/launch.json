@@ -11,7 +11,7 @@
         "--output-dir",
         "models/distilbert-debug",
         "--data-limit",
-        "200",
+        "500",
         "--test-ratio",
         "0.2",
         "--epochs",
@@ -20,9 +20,12 @@
         "8",
         "--logging-steps",
         "1"
-        // python -m src.training --output-dir models/distilbert-debug --data-limit 200 --test-ratio 0.2 --epochs 1 --batch-size 8 --logging-steps 1
+        // python -m src.training --output-dir models/distilbert-debug --data-limit 50000 --test-ratio 0.2 --epochs 1 --batch-size 8 --logging-steps 20
       ]
-    },
+      // Full run: python -m src.training --output-dir models/distilbert-full --test-ratio 0.2 --epochs 4 --batch-size 64 --logging-steps 10000
+    }, 
+    // Full run on small eval: python -m src.training --output-dir models/distilbert-full-split002 --test-ratio 0.02 --epochs 4 --batch-size 64 --logging-steps 10000
+    // python -m src.evaluate --checkpoint-path models/distilbert-full-split002 --test-ratio 0.02
     {
       "name": "Evaluate checkpoint",
       "type": "python",
@@ -33,10 +36,32 @@
         "--checkpoint-path",
         "models/distilbert-debug",
         "--data-limit",
-        "200",
+        "2000",
         "--test-ratio",
         "0.2"
-        // --checkpoint-path models/distilbert-debug --data-limit 200 --test-ratio 0.2
+        // python -m src.evaluate --checkpoint-path models/distilbert-debug --data-limit 50000 --test-ratio 0.2
+      ] // python -m src.evaluate --checkpoint-path models/distilbert-debug --data-limit 500 --test-ratio 0.2
+    },
+    {
+      "name": "Train Perplexity Logistic (debug subset)",
+      "type": "python",
+      "request": "launch",
+      "module": "src.perplexity_training",
+      "console": "integratedTerminal",
+      "args": [
+        "--output-dir",
+        "models/perplexity-logistic-debug",
+        "--model-name",
+        "gpt2",
+        "--batch-size",
+        "8",
+        "--max-length",
+        "512",
+        "--data-limit",
+        "2000",
+        "--test-ratio",
+        "0.2"
+        // python -m src.perplexity_training --output-dir models/perplexity-logistic-debug --model-name gpt2 --batch-size 8 --max-length 512 --data-limit 50000 --test-ratio 0.2
       ]
     },
     {

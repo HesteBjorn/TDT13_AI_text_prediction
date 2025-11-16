@@ -18,6 +18,7 @@ from . import config, data
 from .models.distilbert_classifier import DistilBERTClassifier
 from .models.llm_prompt import AVAILABLE_PROMPT_MODELS, load_prompt_detector
 from .models.perplexity_detector import PerplexityDetector
+from .models.perplexity_classifier import PerplexityLogisticClassifier
 
 app = typer.Typer(add_completion=False)
 console = Console()
@@ -29,6 +30,9 @@ def main(
     checkpoint_path: Path = typer.Option(..., help="Path to a fine-tuned transformer checkpoint."),
     run_prompt_baseline: bool = typer.Option(True, help="Also run the prompt-based detector baseline."),
     run_perplexity_baseline: bool = typer.Option(True, help="Also run a frozen-LM perplexity detector."),
+    run_perplexity_classifier: bool = typer.Option(
+        True, help="Also run the trained perplexity-logistic classifier."
+    ),
     prompt_model: str = typer.Option(
         "llama-3.2-1b-instruct",
         help=f"Prompt detector to benchmark ({PROMPT_MODEL_CHOICES}).",
@@ -51,6 +55,9 @@ def main(
         help="Optional manual decision boundary in average NLL space (lower = more AI).",
     ),
     perplexity_progress: bool = typer.Option(False, help="Show a progress bar for perplexity scoring."),
+    perplexity_classifier_path: Optional[Path] = typer.Option(
+        None, help="Path to a trained perplexity logistic classifier."
+    ),
 ) -> None:
     """Benchmark the transformer classifier and optional prompt baseline."""
     config.ensure_directories()
@@ -100,6 +107,28 @@ def main(
             "avg_nll": avg_nll,
         }
         console.print(ppl_metrics)
+
+    if run_perplexity_classifier:
+        if perplexity_classifier_path is None:
+            raise typer.BadParameter("Provide --perplexity-classifier-path when enabling the classifier run.")
+        console.rule("[bold blue]Perplexity logistic classifier")
+        texts = test_dataset[config.TEXT_FIELD]
+        labels = test_dataset[config.LABEL_FIELD]
+        classifier = PerplexityLogisticClassifier.load(perplexity_classifier_path)
+        preds, scores = classifier.predict(texts)
+        tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
+        clf_metrics = {
+            "accuracy": float(accuracy_score(labels, preds)),
+            "precision": float(precision_score(labels, preds)),
+            "recall": float(recall_score(labels, preds)),
+            "f1": float(f1_score(labels, preds)),
+            "roc_auc": float(roc_auc_score(labels, scores)),
+            "tp": int(tp),
+            "tn": int(tn),
+            "fp": int(fp),
+            "fn": int(fn),
+        }
+        console.print(clf_metrics)
 
     if not run_prompt_baseline:
         return
