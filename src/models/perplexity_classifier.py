@@ -55,7 +55,10 @@ class PerplexityLogisticClassifier:
 
     @classmethod
     def load(cls, path: Path) -> "PerplexityLogisticClassifier":
-        with Path(path).open("rb") as f:
+        path = Path(path)
+        if path.is_dir():
+            path = path / "perplexity_classifier.pkl"
+        with path.open("rb") as f:
             payload = pickle.load(f)
         return cls(detector_config=payload["detector_config"], logistic_model=payload["logistic_model"])
 
