@@ -25,7 +25,7 @@ class PerplexityStatistics:
 class PerplexityDetector:
     """Zero-shot detector that scores texts via average negative log-likelihood."""
 
-    model_name: str = "gpt2"
+    model_name: str = "meta-llama/Llama-3.2-1B"
     batch_size: int = 8
     max_length: int = 1024
     device: str | torch.device | None = None

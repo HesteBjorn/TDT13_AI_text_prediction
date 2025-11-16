@@ -65,7 +65,7 @@ This repo provides a minimal-yet-extensible scaffold for comparing simple AI-tex
 
 ### Perplexity baseline
 
-- `PerplexityDetector` loads a frozen causal LM (default: `gpt2`) to compute average negative log-likelihood and log-prob variance per text—no RAID supervision required.
+- `PerplexityDetector` loads a frozen causal LM (default: `meta-llama/Llama-3.2-1B`) to compute average negative log-likelihood and log-prob variance per text—no RAID supervision required.
 - The evaluation CLI min–max normalizes NLLs on the fly to provide ROC-ready scores and uses a median threshold for binary predictions; pass `--perplexity-threshold` to override.
 - Swap checkpoints with `--perplexity-model` (e.g., `EleutherAI/pythia-410m`), adjust sequence length via `--perplexity-max-length`, and enable progress reporting with `--perplexity-progress` when running large splits.
 - Calibration / learned decision heads are intentionally deferred; the stored `PerplexityStatistics` make it easy to plug in a calibrator later without rewriting the scorer.

@@ -25,7 +25,9 @@ def main(
         Path("models/perplexity-logistic"),
         help="Folder to store the trained logistic classifier.",
     ),
-    model_name: str = typer.Option("gpt2", help="HF decoder-only LM used for perplexity scoring."),
+    model_name: str = typer.Option(
+        "meta-llama/Llama-3.2-1B", help="HF decoder-only LM used for perplexity scoring."
+    ),
     batch_size: int = typer.Option(8, help="Batch size for perplexity scoring."),
     max_length: int = typer.Option(1024, help="Maximum sequence length when scoring text."),
     torch_dtype: Optional[str] = typer.Option(None, help="Optional torch dtype override (e.g., float16)."),

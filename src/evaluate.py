@@ -47,7 +47,9 @@ def main(
     ),
     sample_seed: int = typer.Option(42, help="Seed used when applying --data-limit."),
     test_ratio: float = typer.Option(0.2, help="Portion of the train split held out as the test set."),
-    perplexity_model: str = typer.Option("gpt2", help="HF causal LM checkpoint used for perplexity scoring."),
+    perplexity_model: str = typer.Option(
+        "meta-llama/Llama-3.2-1B", help="HF causal LM checkpoint used for perplexity scoring."
+    ),
     perplexity_batch_size: int = typer.Option(8, help="Batch size for perplexity inference."),
     perplexity_max_length: int = typer.Option(1024, help="Token limit when scoring with the LM."),
     perplexity_threshold: Optional[float] = typer.Option(
