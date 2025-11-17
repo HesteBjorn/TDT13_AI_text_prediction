@@ -1,6 +1,6 @@
 {
   // Everything run (train and eval on 0.02 split): 
-  // python -m src.training --output-dir models/distilbert-full-split002 --test-ratio 0.02 --epochs 4 --batch-size 64 --logging-steps 100000 && python -m src.perplexity_training --output-dir models/perplexity-logistic --batch-size 8 --max-length 512 --test-ratio 0.02  && python -m src.evaluate --checkpoint-path models/distilbert-full-split002 --perplexity-classifier-path models/perplexity-logistic --test-ratio 0.02 --no-run-prompt-baseline
+  // python -m src.training --output-dir models/distilbert-full-split002 --test-ratio 0.02 --epochs 4 --batch-size 64 --logging-steps 100000 && python -m src.perplexity_training --output-dir models/perplexity-logistic --batch-size 2 --max-length 512 --test-ratio 0.02  && python -m src.evaluate --checkpoint-path models/distilbert-full-split002 --perplexity-classifier-path models/perplexity-logistic --test-ratio 0.02 --no-run-prompt-baseline
   // With logs:
   // { python -m src.training --output-dir models/distilbert-full-split002 --test-ratio 0.02 --epochs 4 --batch-size 64 --logging-steps 100000 && python -m src.perplexity_training --output-dir models/perplexity-logistic --batch-size 2 --max-length 512 --test-ratio 0.02 && python -m src.evaluate --checkpoint-path models/distilbert-full-split002 --perplexity-classifier-path models/perplexity-logistic --test-ratio 0.02 --no-run-prompt-baseline --perplexity-batch-size 1 --perplexity-max-length 512 --run-perplexity-classifier --no-run-perplexity-baseline; } 2>&1 | tee -a logs/full_pipeline.log
 
