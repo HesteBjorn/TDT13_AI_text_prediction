@@ -62,7 +62,7 @@ class PerplexityLogisticClassifier:
             payload = pickle.load(f)
         return cls(detector_config=payload["detector_config"], logistic_model=payload["logistic_model"])
 
-    def predict(self, texts: Iterable[str]) -> Tuple[np.ndarray, np.ndarray]:
+    def predict(self, texts: Iterable[str], return_nnl_features=False) -> Tuple[np.ndarray, np.ndarray]:
         stats = self.detector.score(texts)
         features, mask = _build_feature_matrix(stats)
         probs = np.zeros(len(features), dtype=np.float32)
@@ -73,6 +73,9 @@ class PerplexityLogisticClassifier:
             preds[mask] = (proba_valid >= 0.5).astype(int)
         preds[~mask] = 1  # default to AI when we cannot score
         probs[~mask] = 0.5
+        if return_nnl_features:
+            return preds, probs, stats.mean_logp, stats.nll, stats.std_logp
+        
         return preds, probs
 
     def evaluate(self, texts: Iterable[str], labels: Iterable[int]) -> dict:
